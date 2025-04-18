@@ -50,8 +50,8 @@ for fname in CLASSIFIER_FILES:
 @app.post("/analyze", summary="Analyze CBC image")
 async def analyze(
     raw: bytes = Body(..., media_type="application/octet-stream"),
-    conf_threshold: float = Query(0.25, ge=0.0, le=1.0),
-    classification_model: str = Query("combined")
+    conf_threshold: float = Query(0.1, ge=0.1, le=1.0),
+    classification_model: str = Query("yolo11x-cls.pt")
 ):
     """
     Analyze an image to detect and classify blood cells.

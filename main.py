@@ -7,7 +7,7 @@ from PIL import Image
 from typing import Dict
 
 from utils.models import load_yolo_model, load_classification_model
-from utils.classification import classify_cell, ensemble_classification, get_classes
+from utils.classification import classify_cell, get_classes
 
 app = FastAPI(title="CBC Analysis API")
 
@@ -33,18 +33,10 @@ yolo_model.to(device)
 
 # Preload classification models
 CLASSIFIER_FILES = [
-    "densenet201.pth",
-    "efficientnet_v2_l.pth",
-    "inception_v3.pth",
-    "resnet152.pth",
-    "resnext101_64x4d.pth",
     "yolo11l-cls.pt",
     "yolo11x-cls.pt"
 ]
 loaded_classifiers: Dict[str, torch.nn.Module] = {}
-for fname in CLASSIFIER_FILES:
-    if fname not in ("yolo11l-cls.pt", "yolo11x-cls.pt"):
-        loaded_classifiers[fname] = load_classification_model(fname, device)
 
 
 @app.post("/analyze", summary="Analyze CBC image")
@@ -83,14 +75,11 @@ async def analyze(
         x1, y1, x2, y2 = map(int, bbox)
         cell_np = image_np[y1:y2, x1:x2]
 
-        if classification_model == "combined":
-            cell_cls = ensemble_classification(loaded_classifiers, cell_np)
+        if classification_model in loaded_classifiers:
+            model_inst = loaded_classifiers[classification_model]
         else:
-            if classification_model in loaded_classifiers:
-                model_inst = loaded_classifiers[classification_model]
-            else:
-                model_inst = load_classification_model(classification_model, device)
-            cell_cls = classify_cell(classification_model, model_inst, cell_np)
+            model_inst = load_classification_model(classification_model, device)
+        cell_cls = classify_cell(model_inst, cell_np)
 
         output.append({"bbox": [x1, y1, x2, y2], "class": cell_cls})
         class_counts[cell_cls.upper()] += 1

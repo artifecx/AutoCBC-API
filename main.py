@@ -85,7 +85,7 @@ async def analyze_differential(
             model_inst = load_classification_model(classification_model)
         cell_cls = classify_cell(model_inst, cell_np)
 
-        output.append({"bbox": [x1, y1, x2, y2], "class": cell_cls})
+        output.append({"bbox": [x1, y1, x2, y2], "class": cell_cls.upper()})
         class_counts[cell_cls.upper()] += 1
         if cell_cls.lower() not in ("platelet", "rbc"):
             wbc_count += 1

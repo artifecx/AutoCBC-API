@@ -1,11 +1,11 @@
 import io
 import asyncio
-from fastapi import FastAPI, Body, Query, HTTPException
+from fastapi import FastAPI, Body, Query, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 import torch
 import numpy as np
 from PIL import Image
-from typing import Dict
+from typing import Dict, List
 from concurrent.futures import ThreadPoolExecutor
 import threading
 
@@ -132,6 +132,66 @@ async def analyze_differential(
         "results": output,
         "class_counts": class_counts,
         "wbc_count": wbc_count
+    }
+
+
+@app.post("/analyze-differentials", summary="Analyze multiple Blood Smear images")
+async def analyze_differentials(
+    files: List[UploadFile] = File(
+        ...,
+        media_type="application/octet-stream",
+        description="One or more blood‑smear images as raw octet streams"
+    ),
+    conf_threshold: float = Query(
+        0.1, ge=0.1, le=1.0,
+        description="YOLO detection confidence threshold (0.1–1.0)"
+    ),
+    classification_model: str = Query(
+        "yolo11x-cls.pt",
+        description="one of the model filenames"
+    ),
+):
+    """
+    Iterate through each uploaded image, invoke the single‐image logic,
+    return their individual results, plus overall totals.
+    """
+    # Prepare accumulators
+    classes = get_classes()
+    total_class_counts = {cls.upper(): 0 for cls in classes}
+    total_wbc_count = 0
+
+    batch_results = []
+
+    for upload in files:
+        # 1) Read bytes
+        try:
+            raw = await upload.read()
+        except Exception:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Could not read file '{upload.filename}'"
+            )
+
+        # 2) Call your existing single‐image analyzer
+        single = await analyze_differential(
+            raw=raw,
+            conf_threshold=conf_threshold,
+            classification_model=classification_model
+        )
+
+        # 3) Update grand totals
+        for cls, cnt in single["class_counts"].items():
+            total_class_counts[cls] += cnt
+        total_wbc_count += single["wbc_count"]
+
+        # 4) Collect per‐image output
+        batch_results.append(single)
+
+    # 5) Return both per‐image and overall aggregates
+    return {
+        "batch": batch_results,
+        "total_class_counts": total_class_counts,
+        "total_wbc_count": total_wbc_count
     }
 
 

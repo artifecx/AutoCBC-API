@@ -1,13 +1,22 @@
-import io
 import asyncio
-from fastapi import FastAPI, Body, Query, HTTPException, UploadFile, File
-from fastapi.middleware.cors import CORSMiddleware
+import datetime
+import io
+import json
+import uuid
+import threading
 import torch
 import numpy as np
+from concurrent.futures import ThreadPoolExecutor
+from fastapi import BackgroundTasks, FastAPI, Body, Query, HTTPException, UploadFile, File
+from fastapi.middleware.cors import CORSMiddleware
+from pathlib import Path
 from PIL import Image
 from typing import Dict, List
-from concurrent.futures import ThreadPoolExecutor
-import threading
+
+INPUT_DIR = Path("data/inputs")
+OUTPUT_DIR = Path("data/outputs")
+INPUT_DIR.mkdir(parents=True, exist_ok=True)
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 from utils.models import (
     load_bloodsmear_model,
@@ -38,6 +47,14 @@ executor = ThreadPoolExecutor()
 CLASSIFIER_FILES = ["yolo11l-cls.pt", "yolo11x-cls.pt"]
 loaded_classifiers: Dict[str, torch.nn.Module] = {}
 model_lock = threading.Lock()
+
+def save_bytes(path: Path, data: bytes):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(data)
+
+def save_json(path: Path, obj: dict):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(obj, indent=2))
 
 @app.on_event("startup")
 def preload_classifiers():
@@ -91,6 +108,7 @@ async def process_image(image_bytes, conf_threshold, classification_model):
 
 @app.post("/analyze-differentials", summary="Batch Analyze Blood Smear images")
 async def analyze_differentials(
+    background_tasks: BackgroundTasks,
     files: List[UploadFile] = File(..., media_type="application/octet-stream"),
     conf_threshold: float = Query(0.1, ge=0.1, le=1.0),
     classification_model: str = Query("yolo11x-cls.pt"),
@@ -106,10 +124,20 @@ async def analyze_differentials(
     async def process_with_semaphore(upload):
         async with semaphore:
             raw = await upload.read()
-            return await process_image(raw, conf_threshold, classification_model)
+
+            timestamp = datetime.datetime.now(datetime.UTC).strftime("%Y%m%d%H%M%S")
+            uid = uuid.uuid4().hex
+            filename = f"{timestamp}_{uid}.png"
+            input_path = INPUT_DIR / filename
+            output_path = OUTPUT_DIR / f"{filename}.json"
+
+            background_tasks.add_task(save_bytes, input_path, raw)
+            result = await process_image(raw, conf_threshold, classification_model)
+            background_tasks.add_task(save_json, output_path, result)
+
+            return result
 
     tasks = [process_with_semaphore(upload) for upload in files]
-
     results = await asyncio.gather(*tasks)
 
     for single in results:

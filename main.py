@@ -7,16 +7,11 @@ import threading
 import torch
 import numpy as np
 from concurrent.futures import ThreadPoolExecutor
-from fastapi import BackgroundTasks, FastAPI, Body, Query, HTTPException, UploadFile, File
+from fastapi import BackgroundTasks, FastAPI, Body, Query, HTTPException, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 from PIL import Image
 from typing import Dict, List
-
-INPUT_DIR = Path("data/inputs")
-OUTPUT_DIR = Path("data/outputs")
-INPUT_DIR.mkdir(parents=True, exist_ok=True)
-OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 from utils.models import (
     load_bloodsmear_model,
@@ -24,6 +19,11 @@ from utils.models import (
     load_classification_model
 )
 from utils.classification import classify_cell, get_classes
+
+INPUT_DIR = Path("data/inputs")
+OUTPUT_DIR = Path("data/outputs")
+INPUT_DIR.mkdir(parents=True, exist_ok=True)
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 app = FastAPI(title="CBC Analysis API")
 
@@ -108,6 +108,7 @@ async def process_image(image_bytes, conf_threshold, classification_model):
 
 @app.post("/analyze-differentials", summary="Batch Analyze Blood Smear images")
 async def analyze_differentials(
+    request: Request,
     background_tasks: BackgroundTasks,
     files: List[UploadFile] = File(..., media_type="application/octet-stream"),
     conf_threshold: float = Query(0.1, ge=0.1, le=1.0),
@@ -123,7 +124,13 @@ async def analyze_differentials(
 
     async def process_with_semaphore(upload):
         async with semaphore:
+            if await request.is_disconnected():
+                raise HTTPException(status_code=499, detail="Client disconnected")
+
             raw = await upload.read()
+
+            if await request.is_disconnected():
+                raise HTTPException(status_code=499, detail="Client disconnected")
 
             timestamp = datetime.datetime.now(datetime.UTC).strftime("%Y%m%d%H%M%S")
             uid = uuid.uuid4().hex
@@ -131,9 +138,9 @@ async def analyze_differentials(
             input_path = INPUT_DIR / filename
             output_path = OUTPUT_DIR / f"{filename}.json"
 
-            background_tasks.add_task(save_bytes, input_path, raw)
+            # background_tasks.add_task(save_bytes, input_path, raw)
             result = await process_image(raw, conf_threshold, classification_model)
-            background_tasks.add_task(save_json, output_path, result)
+            # background_tasks.add_task(save_json, output_path, result)
 
             return result
 

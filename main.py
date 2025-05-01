@@ -127,8 +127,8 @@ async def analyze_differentials(
     request: Request,
     background_tasks: BackgroundTasks,
     files: List[UploadFile] = File(..., media_type="application/octet-stream"),
-    conf_threshold: float = Query(0.1, ge=0.1, le=1.0),
-    classification_model: str = Query("yolo11x-cls.pt"),
+    conf_threshold: float = Query(0.5, ge=0.1, le=1.0),
+    classification_model: str = Query("yolo11l-cls.pt"),
     batch_size: int = Query(8, ge=1, le=8)
 ):
     classes = get_classes()
@@ -154,7 +154,7 @@ async def analyze_differentials(
             input_path = INPUT_DIR / filename
             output_path = OUTPUT_DIR / f"{filename}.json"
 
-            background_tasks.add_task(save_bytes, input_path, raw)
+            # background_tasks.add_task(save_bytes, input_path, raw)
             result = await process_image(raw, conf_threshold, classification_model)
             # background_tasks.add_task(save_json, output_path, result)
 
@@ -180,7 +180,7 @@ async def analyze_absolutes(
     request: Request,
     background_tasks: BackgroundTasks,
     files: List[UploadFile] = File(..., media_type="application/octet-stream"),
-    conf_threshold: float = Query(0.1, ge=0.1, le=1.0),
+    conf_threshold: float = Query(0.2, ge=0.1, le=1.0),
     classification_model: str = Query("yolo11x-cls-hemo.pt"),
     batch_size: int = Query(8, ge=1, le=8),
 ):

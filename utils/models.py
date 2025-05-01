@@ -21,7 +21,7 @@ login(token=token)
 @lru_cache(maxsize=1)
 def load_bloodsmear_model() -> YOLO:
     """Download and return the YOLO detection model for blood smear images."""
-    yolo_path = hf_hub_download(repo_id="artifecx/CBCModels", filename="yolo11s.pt")
+    yolo_path = hf_hub_download(repo_id="artifecx/CBCModels", filename="yolo11n.pt")
     return YOLO(yolo_path)
 
 
@@ -35,12 +35,12 @@ def load_classification_model(model_name: str) -> torch.nn.Module:
 @lru_cache(maxsize=1)
 def load_hemocytometer_model() -> YOLO:
     """Download and return the YOLO detection model for hemocytometer images."""
-    yolo_path = hf_hub_download(repo_id="artifecx/CBCModels", filename="yolo11-hemo.pt")
+    yolo_path = hf_hub_download(repo_id="artifecx/CBCModels", filename="yolo11n-hemo.pt")
     return YOLO(yolo_path)
 
 
 @lru_cache(maxsize=1)
 def load_hemo_classification_model() -> YOLO:
     """Download and return the YOLO classification model for hemocytometer images."""
-    yolo_path = hf_hub_download(repo_id="artifecx/CBCModels", filename="yolo11x-cls-hemo.pt")
+    yolo_path = hf_hub_download(repo_id="artifecx/CBCModels", filename="yolo11l-cls-hemo.pt")
     return YOLO(yolo_path)

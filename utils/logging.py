@@ -11,6 +11,7 @@ logging.basicConfig(
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request as StarletteRequest
+from zoneinfo import ZoneInfo
 
 
 class LoggingMiddleware(BaseHTTPMiddleware):
@@ -20,7 +21,8 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         method = request.method
         url = str(request.url)
         origin = request.headers.get("origin", "unknown")
-        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        ph_tz = ZoneInfo("Asia/Manila")
+        now = datetime.datetime.now(ph_tz).isoformat()
 
         logging.info(
             f"Request | time={now} | ip={client_ip} | method={method} | url={url} | origin={origin}"

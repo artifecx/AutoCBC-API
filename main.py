@@ -37,7 +37,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "https://localhost:7031",
-        "https://autocbc.azurewebsites.net"
+        "https://autocbc.azurewebsites.net",
+        "https://gradsync.org"
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -154,7 +155,7 @@ async def analyze_differentials(
             input_path = INPUT_DIR / filename
             output_path = OUTPUT_DIR / f"{filename}.json"
 
-            # background_tasks.add_task(save_bytes, input_path, raw)
+            background_tasks.add_task(save_bytes, input_path, raw)
             result = await process_image(raw, conf_threshold, classification_model)
             # background_tasks.add_task(save_json, output_path, result)
 

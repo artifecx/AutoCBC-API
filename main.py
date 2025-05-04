@@ -7,7 +7,7 @@ import threading
 import torch
 import numpy as np
 from concurrent.futures import ThreadPoolExecutor
-from fastapi import BackgroundTasks, FastAPI, Body, Query, HTTPException, UploadFile, File, Request
+from fastapi import BackgroundTasks, FastAPI, Query, HTTPException, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 from PIL import Image
@@ -25,6 +25,8 @@ from utils.classification import (
     get_classes,
     get_hemo_classes,
 )
+
+from utils.logging import LoggingMiddleware
 
 INPUT_DIR = Path("data/inputs")
 OUTPUT_DIR = Path("data/outputs")
@@ -44,6 +46,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(LoggingMiddleware)
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
